@@ -160,6 +160,7 @@ def stream():
                     # Hvert senter i framen blir lagret i pts
                     pts.append(center)
 
+                    # Collects the trajectories from each frame, calculates Hu and performs knn
                     collectData(ptsTot, counter, frame, numOfObjects, radius, checkYdir)
 
             # Track the detected objects
@@ -193,10 +194,6 @@ def stream():
     cv2.waitKey(1)
 
 
-# def detect_objects():
-
-
-
 def track_objects(pts,ptsTot,frame):
     """
     Tar for seg hvert kordinat "i" en nye frame.
@@ -220,13 +217,9 @@ def track_objects(pts,ptsTot,frame):
                         (i[0] - ptsTot[j][0][0]) + np.linalg.norm(i[1] - ptsTot[j][0][1]))
         minDistIdx = np.argmin(dist)
 
-        # If settning som skal filtrere bort avstander som er for store.
-        # dvs. feil klassifisering
+        # Checks that we are tracking the same object
         if dist[minDistIdx] < 150:
-            # Tar det gjeldende koordinatet vi tester for å plasserer det i riktig deque
             ptsTot[minDistIdx].appendleft(i)
-
-            # Hvis sdet ikke har er noe objekt så ikke tegn noe
             for j in range(1, len(ptsTot[minDistIdx])):
                 if ptsTot[minDistIdx][j - 1] == None or ptsTot[minDistIdx][j] == None:
                     continue
@@ -249,6 +242,7 @@ def morphological_operations(frame, colorLower, colorUpper, erode=2, dilate=5):
     mask = cv2.inRange(hsv, colorLower, colorUpper)
     mask = cv2.erode(mask, None, erode)
     return cv2.dilate(mask, None, dilate)
+
 
 def findHuMoments(image, frame):
     """
@@ -310,6 +304,7 @@ def classify_with_knn(Hu):
 
     return classification
 
+
 def drawTail(ptsTot, image):
     """
     Plotter banen til kastet ett er det er nådd topppunktet
@@ -328,6 +323,29 @@ def drawTail(ptsTot, image):
         cv2.line(s, ptsTot[j], ptsTot[j - 1], (0, 0, 255), thickness)
 
     return s
+
+
+def write_statistics(frame, Score, storeHeight, classification):
+    """
+    Writes the statistics of the program on screen
+    :param frame:
+    :param Score:
+    :param storeHeight:
+    :param classification:
+    :return:
+    """
+    # Skriver antall kast, type kast og classifier score på skjermen.
+    if len(storeHeight) > 0:
+        cv2.putText(frame, "Throws: {}".format(len(storeHeight)), (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0),
+                    1)
+
+        if classification == [[0.]]:
+            cv2.putText(frame, 'Throw type: 3', (10, 355), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
+
+        elif classification == [[1.]]:
+            cv2.putText(frame, 'Throw type: 4', (10, 355), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
+    if Score != 0:
+        cv2.putText(frame, Score, (10, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
 
 
 def collectData(ptsTot, counter, frame, numOfObjects, radius, checkYdir):
@@ -369,12 +387,12 @@ def collectData(ptsTot, counter, frame, numOfObjects, radius, checkYdir):
             checkYdir[i].appendleft(dy)
             checkXdir[i].appendleft(dx)
 
-            #            Lagrer topp- og bunnpunkt når ballen skifter retning i x eller y.
+            # Lagrer topp- og bunnpunkt når ballen skifter retning i x eller y.
             if counter > 50:
-                # =============================================================================
-                #                 Sjekker x rettning.
-                # =============================================================================
+
+                # Sjekker x retning.
                 if checkXdir[i][0] < 0 and checkXdir[i][1] > 0:
+
                     # Finn topppunkt kordinater
                     maxWidth = np.amax(ptsTot[i], 0)
                     minWidth = np.amin(ptsTot[i], 0)
@@ -406,22 +424,12 @@ def collectData(ptsTot, counter, frame, numOfObjects, radius, checkYdir):
 
             yret += 15
 
-    # Skriver antall kast, type kast og classifier score på skjermen.
-    if len(storeHeight) > 0:
-        cv2.putText(frame, "Throws: {}".format(len(storeHeight)), (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0),
-                    1)
-
-        if classification == [[0.]]:
-            cv2.putText(frame, 'Throw type: 3', (10, 355), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
-
-        elif classification == [[1.]]:
-            cv2.putText(frame, 'Throw type: 4', (10, 355), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
-    if Score != 0:
-        cv2.putText(frame, Score, (10, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 1)
-
-    (10, 410)
+    write_statistics(frame, Score, storeHeight, classification)
 
 
+
+
+# Run code
 stream()
 
 
